@@ -3,6 +3,7 @@ export type {
   ApiErrorCode,
   Artifact,
   ArtifactKind,
+  CancelRunResponse,
   CaseResult,
   CaseStatus,
   FailureKind,

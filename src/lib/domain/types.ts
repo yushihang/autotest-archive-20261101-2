@@ -196,8 +196,10 @@ export interface Run {
   createdAt: IsoDateTime;
   startedAt: IsoDateTime | null;
   finishedAt: IsoDateTime | null;
+  /** 取消动作发生的时间；未被取消时为 `null`。 */
+  cancelledAt: IsoDateTime | null;
   durationMs: number | null;
-  /** 整体失败归类；通过或未结束时为 `null`。 */
+  /** 整体失败归类；通过或未结束时为 `null`。被取消时为 `"cancelled"`。 */
   failureKind: FailureKind | null;
   /** 整体（非用例级）错误信息，例如取消或超时原因。 */
   error: string | null;
@@ -224,6 +226,20 @@ export interface RunSummary {
     failed: number;
     skipped: number;
   };
+}
+
+/**
+ * `POST /api/runs/:id/cancel` 的响应体：run 的一个切片。
+ *
+ * 状态不一定立刻收敛——执行器可能还要几百毫秒才把 `running` 改成 `cancelled`，
+ * 因此客户端应以随后 `GET /api/runs/:id` 的 `status` 为准。
+ */
+export interface CancelRunResponse {
+  id: string;
+  status: RunStatus;
+  finishedAt: IsoDateTime | null;
+  /** 取消动作发生的时间。 */
+  cancelledAt: IsoDateTime | null;
 }
 
 /** 已进入终态、不会再变化的 run 状态。 */

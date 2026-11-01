@@ -56,7 +56,7 @@
 | `validation_error` | 422 | 结构正确但语义不合法：字段缺失/越界、URL 不是合法 http(s) 地址等，详见 `details` |
 | `not_found` | 404 | 资源不存在（项目、run、计划） |
 | `conflict` | 409 | 与现有状态冲突：项目名重复、同一项目并发 run 超过 `MAX_RUNS_PER_PROJECT` |
-| `run_not_cancellable` | 409 | run 已处于终态，无法取消 |
+| `run_not_cancellable` | 409 | run 已处于终态且不是 `cancelled`（`cancelled` 本身按取消幂等返回 `200`） |
 | `payload_too_large` | 413 | 请求体超过限制（默认 1 MiB） |
 | `internal_error` | 500 | 服务端未预期错误，`message` 不包含堆栈 |
 
@@ -277,6 +277,36 @@
         "value": null,
         "expected": null,
         "timeoutMs": null
+      },
+      {
+        "id": "step_2",
+        "order": 1,
+        "description": "填入用户名",
+        "action": "fill",
+        "target": "input[name=username]",
+        "value": "demo",
+        "expected": null,
+        "timeoutMs": null
+      },
+      {
+        "id": "step_3",
+        "order": 2,
+        "description": "点击登录",
+        "action": "click",
+        "target": "button[type=submit]",
+        "value": null,
+        "expected": null,
+        "timeoutMs": 5000
+      },
+      {
+        "id": "step_4",
+        "order": 3,
+        "description": "看到控制台标题",
+        "action": "assert_text",
+        "target": "h1",
+        "value": null,
+        "expected": "控制台",
+        "timeoutMs": null
       }
     ],
     "createdAt": "2026-10-28T06:00:00.000Z",
@@ -286,6 +316,7 @@
   "createdAt": "2026-11-01T08:30:00.000Z",
   "startedAt": null,
   "finishedAt": null,
+  "cancelledAt": null,
   "durationMs": null,
   "failureKind": null,
   "error": null,
@@ -364,7 +395,48 @@ run 的完整详情，包含 `planSnapshot`、所有 `cases` 与嵌套 `steps`�
     "title": "登录并进入控制台",
     "summary": "验证账号密码登录后能跳到控制台首页",
     "baseUrl": null,
-    "steps": [],
+    "steps": [
+      {
+        "id": "step_1",
+        "order": 0,
+        "description": "打开登录页",
+        "action": "goto",
+        "target": "/login",
+        "value": null,
+        "expected": null,
+        "timeoutMs": null
+      },
+      {
+        "id": "step_2",
+        "order": 1,
+        "description": "填入用户名",
+        "action": "fill",
+        "target": "input[name=username]",
+        "value": "demo",
+        "expected": null,
+        "timeoutMs": null
+      },
+      {
+        "id": "step_3",
+        "order": 2,
+        "description": "点击登录",
+        "action": "click",
+        "target": "button[type=submit]",
+        "value": null,
+        "expected": null,
+        "timeoutMs": 5000
+      },
+      {
+        "id": "step_4",
+        "order": 3,
+        "description": "看到控制台标题",
+        "action": "assert_text",
+        "target": "h1",
+        "value": null,
+        "expected": "控制台",
+        "timeoutMs": null
+      }
+    ],
     "createdAt": "2026-10-28T06:00:00.000Z",
     "updatedAt": "2026-10-28T06:00:00.000Z"
   },
@@ -372,6 +444,7 @@ run 的完整详情，包含 `planSnapshot`、所有 `cases` 与嵌套 `steps`�
   "createdAt": "2026-11-01T08:30:00.000Z",
   "startedAt": "2026-11-01T08:30:01.000Z",
   "finishedAt": "2026-11-01T08:30:42.000Z",
+  "cancelledAt": null,
   "durationMs": 41000,
   "failureKind": "element_not_found",
   "error": null,
@@ -472,11 +545,13 @@ data: {"id":"4","runId":"run_4c8e02","type":"run.finished","at":"2026-11-01T08:3
 
 ### POST /api/runs/:id/cancel
 
-请求取消一个进行中的 run。幂等：对已是 `cancelled` 的 run 再次调用返回 `200` 及当前状态。
+请求取消一个进行中的 run（`queued` 或 `running`）。成功后 `status` 置为 `cancelled`，`failureKind` 置为 `"cancelled"`，`finishedAt` 与 `cancelledAt` 均为取消时间。
+
+**幂等**：对已是 `cancelled` 的 run 再次调用返回 `200` 及当前状态。`cancelled` 虽然属于终态，但它是这条幂等规则的唯一例外，**不返回** `409`。
 
 请求体：无（空 body 或 `{}`）。
 
-响应 `200`：
+响应 `200`，响应体为 [`CancelRunResponse`](../src/lib/domain/types.ts)：
 
 ```json
 {
@@ -492,7 +567,7 @@ data: {"id":"4","runId":"run_4c8e02","type":"run.finished","at":"2026-11-01T08:3
 错误：
 
 - `404` `not_found`：run 不存在。
-- `409` `run_not_cancellable`：run 已处于终态（如 `passed`/`failed`），响应体：
+- `409` `run_not_cancellable`：run 已处于终态且**不是** `cancelled`，即 `passed` / `failed` / `timed_out` / `error`。（不能直接拿 `isTerminalRunStatus()` 判断，需排除 `cancelled`。）响应体：
 
 ```json
 {
