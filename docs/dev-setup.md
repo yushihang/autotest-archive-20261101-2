@@ -35,11 +35,15 @@ cp .env.example .env.local
 | `LLM_BASE_URL` | `https://api.openai.com/v1` | OpenAI 兼容的 base URL（可指向自建网关） |
 | `LLM_API_KEY` | 空 | 模型密钥；为空时“只给 intent”的建 run 请求会返回 `422` |
 | `LLM_MODEL` | `gpt-4o-mini` | 生成测试计划所用模型 |
+| `AI_PROVIDER` | `openai` | `openai` 走真实网关；`mock` 输出确定性计划，便于离线开发与单测 |
+| `AI_TIMEOUT_MS` | `30000` | 单次模型调用超时；超时按可恢复错误重试 |
+| `AI_MAX_RETRIES` | `2` | 429/5xx/网络错误的重试次数 |
+| `AI_JSON_MODE` | `true` | 网关不支持 `response_format=json_object` 时设为 `false` |
 | `ARTIFACT_DIR` | `./artifacts` | 截图/日志/报告的落盘根目录 |
 | `RUN_TIMEOUT_MS` | `600000` | 单次 run 总超时（10 分钟） |
 | `MAX_RUNS_PER_PROJECT` | `1` | 单项目允许的并发 run 数 |
 
-> 本期（骨架）不会读写数据库、不会调用模型；这些变量先固化下来，供后续 issue 使用。
+> 当前只有 AI 规划器会调用模型；数据库与 run 执行链路尚未接入。
 
 ## 4. 启动
 
