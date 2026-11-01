@@ -47,7 +47,8 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-打开 <http://localhost:3000>，落地页的「进入项目列表」指向 `/projects`（当前是占位页）。
+打开 <http://localhost:3000>，落地页的「进入项目列表」指向控制台的 `/projects`；控制台的 `/runs` 与
+`/runs/:id` 通过 `docs/api-contract.md` 里的接口读取数据（接口未就绪时页面显示错误态）。
 
 生产构建：
 
